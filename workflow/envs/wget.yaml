@@ -1,3 +1,4 @@
+name: wget_mnm
 channels:
   - bioconda
   - conda-forge

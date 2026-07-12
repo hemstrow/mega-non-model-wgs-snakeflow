@@ -1,8 +1,7 @@
-name: bcftools_mnm
+name: samtools_1231
 channels:
   - bioconda
   - conda-forge
   - defaults
 dependencies:
-  - bcftools ==1.15.1
-  
+  - samtools ==1.23.1

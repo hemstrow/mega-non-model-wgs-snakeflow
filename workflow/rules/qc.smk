@@ -12,6 +12,20 @@ rule samtools_stats:
     shell:
         "samtools stats {input} > {output} 2> {log} "
 
+rule samtools_stats_overlap:
+    input:
+        get_bams_for_samtools_stats_overlap,
+    output:
+        "results/bqsr-round-{bqsr_round}/qc/samtools_stats/{sample}_overlap.txt",
+    log:
+        "results/bqsr-round-{bqsr_round}/logs/samtools_stats/{sample}_overlap.log",
+    benchmark:
+        "results/bqsr-round-{bqsr_round}/benchmarks/samtools_stats/{sample}.bmk",
+    conda:
+        "../envs/samtools.yaml"
+    shell:
+        "samtools stats {input} > {output} 2> {log} "
+
 
 # this is a version that can create the same output for bqsr_round > 0
 # from the bam in the recal directory.  We'll see if this works or not...
@@ -44,29 +58,6 @@ rule multiqc_dir:
         mem_mb = 36800
     wrapper:
         "v3.5.1-2-g5f72db4/bio/multiqc"
-
-
-
-# this is a simple version of the multiqc that just pulls in the
-# fastp results
-rule multiqc_dir_no_map:
-    input:
-        expand("results/bqsr-round-0/qc/fastp/{u.sample}---{u.unit}.json", u=units.itertuples())
-    output:
-        "results/prelim_qc/multiqc.html",
-        directory("results/prelim_qc/multiqc_data")
-    log:
-        "results/prelim_qc/logs/multiqc_dir_no_map.log",
-    params:
-        extra="--verbose",  # Optional: extra parameters for multiqc.
-    benchmark:
-        "results/prelim_qc/benchmarks/multiqc/multiqc.bmk",
-    resources:
-        mem_mb = 36800
-    wrapper:
-        "v3.5.1-2-g5f72db4/bio/multiqc"
-
-
 
 
 

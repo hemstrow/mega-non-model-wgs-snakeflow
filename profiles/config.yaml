@@ -1,17 +1,19 @@
 cluster:
   mkdir -p results/slurm_logs/{rule} &&
   sbatch
-    --partition=amilan
-    --qos=normal
+    --partition=acpu
+    --account=csu102_alpine1
     --cpus-per-task={threads}
     --mem={resources.mem_mb}
     --time={resources.time}
+    --qos={resources.qos}
     --job-name=smk-{rule}-{wildcards}
     --output=results/slurm_logs/{rule}/{rule}-{wildcards}-%j.out
     --error=results/slurm_logs/{rule}/{rule}-{wildcards}-%j.err
     --parsable
 default-resources:
-  - time="08:00:00"
+  - time="12:00:00"
+  - qos="cpu-normal"
   - mem_mb=3740
   - tmpdir="results/snake-tmp"
 restart-times: 0
@@ -20,7 +22,7 @@ max-status-checks-per-second: 50
 local-cores: 1
 latency-wait: 60
 cores: 2400
-jobs: 250
+jobs: 190
 keep-going: True
 rerun-incomplete: True
 printshellcmds: True
@@ -44,10 +46,10 @@ set-resources:
   clip_overlaps:
     mem_mb: 112200
     time: "12:59:59"
-  make_gvcf_sections:
-    mem_mb: 29920
-    time: "12:59:59"
   mark_duplicates:
+    mem_mb: 89760
+    time: "12:59:59"
+  filter_bams:
     mem_mb: 89760
     time: "12:59:59"
   map_reads:
@@ -55,13 +57,14 @@ set-resources:
     time: "13:59:59"
   make_gvcf_sections:
     mem_mb: 44800
-    time: "23:59:59"
+    qos: "cpu-long"
+    time: "2-23:59:59"
   genomics_db_import_chromosomes:
     mem_mb: 59800
-    time: "10:59:59"
+    time: "23:59:59"
   genomics_db_import_scaffold_groups:
     mem_mb: 29920
-    time: "10:59:59"
+    time: "23:59:59"
   genomics_db2vcf_scattered:
     mem_mb: 44800
     time: "23:59:59"
@@ -71,3 +74,4 @@ set-resources:
     mem_mb: 37000
   realigner_target_creator:
     mem_mb: 14960
+

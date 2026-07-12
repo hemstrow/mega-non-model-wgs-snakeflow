@@ -38,15 +38,6 @@ mafs = list(
 
 
 
-# deal with a path prefix for all the fastqs, if it exists
-data_prefix = ""
-
-data_parent_key = "data_parent_dir"
-if data_parent_key in config:
-    if config[data_parent_key] and not config[data_parent_key].endswith("/"):
-        raise ValueError(f"Error: '{data_parent_key}' must end with a trailing forward slash.")
-    data_prefix = config[data_parent_key]
-
 units = pd.read_table(config["units"], dtype=str).set_index(
     ["sample", "unit"], drop=False
 )
@@ -224,7 +215,7 @@ def get_fastq(wildcards):
     """Get fastq files of given sample-unit."""
     fastqs = units.loc[(wildcards.sample, wildcards.unit), ["fq1", "fq2"]].dropna()
     if len(fastqs) == 2:
-        return {"r1": data_prefix + fastqs.fq1, "r2": data_prefix + fastqs.fq2}
+        return {"r1": fastqs.fq1, "r2": fastqs.fq2}
     return {"r1": fastqs.fq1}
 
 
@@ -269,6 +260,16 @@ def get_bams_for_calling(wildcards):
 def get_bams_for_samtools_stats(wildcards):
     if wildcards.bqsr_round == "0":
         subd = "mkdup"
+    else:
+        subd = "recal"
+    return "results/bqsr-round-{bqsr_round}/{subd}/{sample}.bam".format(
+            bqsr_round = wildcards.bqsr_round,
+            subd = subd,
+            sample = wildcards.sample)
+
+def get_bams_for_samtools_stats_overlap(wildcards):
+    if wildcards.bqsr_round == "0":
+        subd = "overlap_clipped"
     else:
         subd = "recal"
     return "results/bqsr-round-{bqsr_round}/{subd}/{sample}.bam".format(

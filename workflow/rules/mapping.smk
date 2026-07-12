@@ -56,22 +56,69 @@ rule map_reads:
 
 
 
-rule mark_duplicates:
+rule filter_bams:
     input:
         get_all_bams_of_common_sample
     output:
         bam="results/bqsr-round-{bqsr_round}/mkdup/{sample}.bam",
         bai="results/bqsr-round-{bqsr_round}/mkdup/{sample}.bai",
         metrics="results/bqsr-round-{bqsr_round}/qc/mkdup/{sample}.metrics.txt",
+        merged=temp("results/bqsr-round-{bqsr_round}/mkdup/{sample}.merge.bam"),
+        nsort=temp("results/bqsr-round-{bqsr_round}/mkdup/{sample}.nsort.bam"),
+        markdup=temp("results/bqsr-round-{bqsr_round}/mkdup/{sample}.markdup.bam"),
+        psort=temp("results/bqsr-round-{bqsr_round}/mkdup/{sample}.psort.bam"),
+        q1=temp("results/bqsr-round-{bqsr_round}/mkdup/{sample}.q1.bam"),
+        fixmate=temp("results/bqsr-round-{bqsr_round}/mkdup/{sample}.fixmate.bam"),
+        namesort=temp("results/bqsr-round-{bqsr_round}/mkdup/{sample}.namesort.bam"),
+        flt=temp("results/bqsr-round-{bqsr_round}/mkdup/{sample}.flt.bam"),
     log:
-        "results/bqsr-round-{bqsr_round}/logs/picard/mkdup/{sample}.log",
+        "results/bqsr-round-{bqsr_round}/logs/filter_bams/{sample}.log",
     benchmark:
-        "results/bqsr-round-{bqsr_round}/benchmarks/mark_duplicates/{sample}.bmk"
+        "results/bqsr-round-{bqsr_round}/benchmarks/filter_bams/{sample}.bmk"
     params:
-        extra=config["params"]["picard"]["MarkDuplicates"],
-    resources:
-        cpus = 1
-    wrapper:
-        "v1.1.0/bio/picard/markduplicates"
+        mapQ=config["filtering"]["bams"]["initial_mapQ"]
+    conda:
+        "../envs/samtools.yaml"
+    shell:
+        '''
+        # merge and report
+	echo "Beginning merge." > {log}
+        samtools merge {output.merged} {input} 2>> {log}
+        echo "Initial merged bam:" > {output.metrics}
+	samtools flagstat {output.merged} >> {output.metrics}
+
+	# fixmate, sort, and remove dups
+	echo "Beginning Duplicate Removal." >> {log}
+	echo "Namesort 1." >> {log}
+	samtools sort -n -o {output.nsort} {output.merged} # sort by name
+        echo "Fixmate." >> {log}
+	samtools fixmate -r -m {output.nsort} {output.fixmate} 2>> {log} # fixmate
+	echo "psort." >> {log}
+        samtools sort -o {output.psort} {output.fixmate} 2>> {log} # sort by position
+	echo "markdup." >> {log}
+        samtools markdup -r {output.psort} {output.markdup} 2>> {log} # remove dups
+	echo "Duplicates Removed:" >> {output.metrics}
+        samtools flagstat {output.markdup} >> {output.metrics}
+
+	# remove poorly mapped
+	echo "Beginning mapping filter." >> {log}
+        samtools view -q {params.mapQ} -b {output.markdup} > {output.q1} 2>> {log} # remove poorly mapped
+	echo "Namesort 2." >> {log}
+        samtools sort -n -o {output.namesort} {output.q1} 2>> {log} # sort by name again
+	echo "Poorly Mapped Removed:" >> {output.metrics}
+        samtools flagstat {output.namesort} >> {output.metrics}
+
+	# remove improper pairs and finalize
+	echo "Beginning improper pair removal." >> {log}
+        samtools fixmate -m {output.namesort} {output.fixmate} 2>> {log} # filter bad mates again
+	echo "Imp. Pair Filter." >> {log}
+        samtools view -f 0x2 -b {output.fixmate} > {output.flt} 2>> {log} # remove improper pairs
+	echo "Psort 2." >> {log}
+        samtools sort -o {output.bam} {output.flt} 2>> {log} # sort by position again
+        samtools index {output.bam} 2>> {log} # index
+	echo "Improper Pairs Removed (final bam):" >> {output.metrics}
+        samtools flagstat {output.bam} >> {output.metrics}
+	echo "Done." >> {log}
+        '''
 
 

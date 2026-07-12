@@ -1,15 +1,18 @@
-units: example-configs/YEWA-Jan-2023/units.tsv
-chromosomes: example-configs/YEWA-Jan-2023/chromosomes.tsv
-scaffold_groups: example-configs/YEWA-Jan-2023/scaffold_groups.tsv
-scatter_intervals_file: "example-configs/YEWA-Jan-2023/scatters_5000000.tsv"
+units: /home/c837403421@colostate.edu/PROJECTS/GRASS/BAIS/metadata/adjusted_units_BAIS.tsv
+chromosomes: /home/c837403421@colostate.edu/PROJECTS/GRASS/BAIS/metadata/chromosomes_BAIS.tsv
+scaffold_groups: /home/c837403421@colostate.edu/PROJECTS/GRASS/BAIS/metadata/scaffold_groups_BAIS.tsv
+scatter_intervals_file: /home/c837403421@colostate.edu/PROJECTS/GRASS/BAIS/metadata/scatters_2000000_BAIS.tsv
 
 # this file is only needed when treating different samples
 # as different species, for indel realignment, etc.
 #indel_grps: ".test/config/igrps.tsv" 
 
+# this file is only needed if running dest_force_call
+force_call_vcf: ""
+
 # if you don't want to produce indel-realigned BAMs, set the
-# following to False
-do_indel_realignment: FALSE
+# following to False.  It will still make overlap_clipped bams
+do_indel_realignment: False
 
 # This will typically be left at 0.  Unless you want to do
 # BQSR.
@@ -25,19 +28,22 @@ bqsr_maf: 0.01
 bqsr_qual: 37
 bqsr_qd: 15
 
+
+# the following must be a list, even if it is just one element
+maf_cutoffs: [0]
+
+
 # to specify some downsampling levels to do you can put them in the
 # depths list here.
 downsample_bams:
   depths: []
   bqsr_round: 0
 
-# the following must be a list, even if it is just one element
-maf_cutoffs: [0]
 
 
 # this next one is here just for quickly writing out rclone statements
 # to put the results back onto google drive.
-rclone_base: "BGP-SharePoint-ID:Genetic_and_Environmental_Data/Species_genetic_data/YEWA/snakemake-run-Jan-2023"
+rclone_base: ""
 
 # If you want to copy all the fastq files back to rclone_base,
 # then the send_to_gdrive rule will assume it is in a directory
@@ -58,13 +64,13 @@ genomics_db_import_num: 0
 ref:
   # name of the species.  (will simply be put in the SnpEff config).
   # Put underscores for spaces
-  species_name: Setophaga_petechia
+  species_name: Passerculus_sandwichensis
   # name you want to use for the genome version
-  genome_version_name: YEWA_from_whitney
+  genome_version_name: GCA_031885435.1
   # the URL where this can be downloaded, if public and easy to
   # get with wget.  If not, then you should hand-download
   # genome.fasta and genome.gff or genome.gtf
-  genome_url: got-it-from-whitney-via-google-drive
+  genome_url: downloaded_from_NCBI
   # if there is a GFF or GTF file, they have to have a .gff or
   # .gtf extension.  This where you put the URL for it
   gff_or_gtf_url: ""
@@ -102,18 +108,17 @@ params:
     VariantRecalibrator: ""
   picard:
     MarkDuplicates: " --TAGGING_POLICY All --CREATE_INDEX "
-  trimmomatic:
+  fastp:
     pe:
       trimmer:
-        # See trimmomatic manual for adding additional options, e.g. for adapter trimming.
-        - "ILLUMINACLIP:resources/adapters/TruSeq3-PE-2.fa:2:30:10"
-        - "LEADING:3"
-        - "TRAILING:3"
-        - "SLIDINGWINDOW:4:20"
-        - "MINLEN:36"
+        # See fastp manual for adding additional options, e.g. for adapter trimming.
+        - " --adapter_sequence=AGATCGGAAGAGCACACGTCTGAACTCCAGTCA"
+        - " --adapter_sequence_r2=AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT"
+        - " --detect_adapter_for_pe --cut_right --cut_right_window_size 4 --cut_right_mean_quality 20 --trim_poly_g "
+    # single-end is currently broken
     se:
       trimmer:
-        # See trimmomatic manual for adding additional options, e.g. for adapter trimming.
+        # See fastp manual for adding additional options, e.g. for adapter trimming.
         - "LEADING:3"
         - "TRAILING:3"
         - "SLIDINGWINDOW:4:20"
