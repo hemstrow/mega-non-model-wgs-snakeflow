@@ -98,4 +98,37 @@ rule bams_to_crams:
         "../envs/samtools_1231.yaml"
     shell:
         " samtools view -T {input.ref} -C -o {output.cram} {input.bam};"
-        " samtools index {output.cram}"
+        " samtools index -o {output.crai} {output.cram}"
+
+
+rule downsample_stats:
+    input:
+        bam="results/bqsr-round-{bqsr_round}/downsample-{cov}X/overlap_clipped/{sample}.bam"
+    output:
+        stats="results/bqsr-round-{bqsr_round}/downsample-{cov}X/qc/samtools_stats/{sample}.txt"
+    log:
+        "results/bqsr-round-{bqsr_round}/downsample-{cov}X/logs/qc/samtools_stats/{sample}.log"
+    benchmark:
+        "results/bqsr-round-{bqsr_round}/downsample-{cov}X/benchmarks/qc/samtools_stats/{sample}.bmk"
+    conda:
+        "../envs/samtools.yaml"
+    shell:
+        "samtools stats {input.bam} > {output.stats} 2> {log} "
+
+
+rule get_ave_depths_downsample:
+    input:
+        gLen="results/bqsr-round-{bqsr_round}/DS_control/genome_length.txt",
+        ss=expand("results/bqsr-round-{{bqsr_round}}/downsample-{{cov}}X/qc/samtools_stats/{sample}.txt", sample = sample_list)
+    output:
+        "results/bqsr-round-{bqsr_round}/downsample-{cov}X/DS_control/sample_info.tsv"
+    shell:
+        " ("
+        " printf \"sample\\tave_depth\\n\";   "
+        " for i in {input.ss}; do "
+        " FN=$(basename $i);    "
+        " FN=${{FN/.txt/}};       "
+        " awk -F\"\t\" -v f=$FN -v NumBases=$(cat {input.gLen}) '  "
+        "   BEGIN {{OFS=\"\t\";}} "
+        "   $2==\"bases mapped (cigar):\" {{sub(/\\.stats/, \"\", f); print f,  $3/NumBases}} "
+        " ' $i; done) > {output}  "
