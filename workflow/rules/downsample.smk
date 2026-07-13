@@ -88,7 +88,8 @@ rule bams_to_crams:
         bam="results/bqsr-round-{bqsr_round}/downsample-{cov}X/overlap_clipped/{sample}.bam",
         ref="resources/genome.fasta",
     output:
-        bam="results/bqsr-round-{bqsr_round}/downsample-{cov}X/overlap_clipped/{sample}.cram",
+        cram="results/bqsr-round-{bqsr_round}/downsample-{cov}X/overlap_clipped/{sample}.cram",
+        crai="results/bqsr-round-{bqsr_round}/downsample-{cov}X/overlap_clipped/{sample}.crai",
     log:
         "results/bqsr-round-{bqsr_round}/downsample-{cov}X/logs/bams_to_crams/{sample}.log"
     benchmark:
@@ -96,4 +97,5 @@ rule bams_to_crams:
     conda:
         "../envs/samtools_1231.yaml"
     shell:
-        "samtools view -T {input.ref} -C -o {output.bam} {input.bam}"
+        " samtools view -T {input.ref} -C -o {output.cram} {input.bam};"
+        " samtools index {output.cram}"

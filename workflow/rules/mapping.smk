@@ -76,21 +76,37 @@ rule filter_bams:
     benchmark:
         "results/bqsr-round-{bqsr_round}/benchmarks/filter_bams/{sample}.bmk"
     params:
-        mapQ=config["filtering"]["bams"]["initial_mapQ"]
+        mapQ=config["filtering"]["bams"]["initial_mapQ"],
+        no_inputs=lambda wildcards, input: len(input)
     conda:
-        "../envs/samtools.yaml"
+        "../envs/samtools_1231.yaml"
     shell:
         '''
-        # merge and report
-	echo "Beginning merge." > {log}
-        samtools merge {output.merged} {input} 2>> {log}
-        echo "Initial merged bam:" > {output.metrics}
-	samtools flagstat {output.merged} >> {output.metrics}
+        # merge files if needed        
+        if [[ {params.no_inputs} -gt 1 ]]; then
+            # merge and report
+            echo "Beginning merge." > {log}
+            samtools merge {output.merged} {input} 2>> {log}
+            echo "Initial merged bam:" > {output.metrics}
+            samtools flagstat {output.merged} >> {output.metrics}
 
-	# fixmate, sort, and remove dups
-	echo "Beginning Duplicate Removal." >> {log}
-	echo "Namesort 1." >> {log}
-	samtools sort -n -o {output.nsort} {output.merged} # sort by name
+            # fixmate, sort, and remove dups
+            echo "Beginning Duplicate Removal." >> {log}
+            echo "Namesort 1." >> {log}
+            samtools sort -n -o {output.nsort} {output.merged} # sort by name
+        else
+            echo "Nothing to merge." > {log}
+            touch {output.merged}
+            echo "Initial bam:" > {output.metrics}
+            samtools flagstat {input} >> {output.metrics}
+
+            # fixmate, sort, and remove dups
+            echo "Beginning Duplicate Removal." >> {log}
+            echo "Namesort 1." >> {log}
+            samtools sort -n -o {output.nsort} {input} # sort by name
+        fi
+
+        # continue fixmate
         echo "Fixmate." >> {log}
 	samtools fixmate -r -m {output.nsort} {output.fixmate} 2>> {log} # fixmate
 	echo "psort." >> {log}
@@ -115,7 +131,7 @@ rule filter_bams:
         samtools view -f 0x2 -b {output.fixmate} > {output.flt} 2>> {log} # remove improper pairs
 	echo "Psort 2." >> {log}
         samtools sort -o {output.bam} {output.flt} 2>> {log} # sort by position again
-        samtools index {output.bam} 2>> {log} # index
+        samtools index -o {output.bai} {output.bam} 2>> {log} # index
 	echo "Improper Pairs Removed (final bam):" >> {output.metrics}
         samtools flagstat {output.bam} >> {output.metrics}
 	echo "Done." >> {log}
